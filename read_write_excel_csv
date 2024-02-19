@@ -1,0 +1,87 @@
+#########################################################################
+#
+# made by Marshaw
+#
+# excel的起始日期是1899-12-30
+#
+# 最新更新：9/1/2024
+# 各种导入导出档案的操作
+#
+#######################################################################
+
+##########################################   导入   ####################################################################################################
+
+"导入csv方式1：选择folder，一次读取folder里的所有csv"
+# 获取目录中所有CSV文件的文件名列表
+csv_files <- list.files(path = "Downloads/csv/", pattern = "*.csv", full.names = TRUE)
+# 使用lapply函数读取所有CSV文件并存储为列表
+data_list <- lapply(csv_files, read.csv)
+# 如果您想将它们合并为一个数据框，可以使用do.call和rbind
+combined_data <- do.call(rbind, data_list)
+
+"导入excel方式1：读取特定工作表"
+wb <- loadWorkbook("Downloads/现存标签.xlsx") #现存标签， 先手动整理把三个sheet放在一起
+sheet_names <- names(wb)
+data_now <- read.xlsx(wb, sheet = 1) 
+data_now[,"打标时间"]<- as.POSIXct(data_now[,"打标时间"] %>% unlist() %>% as.numeric()*86400, origin = "1899-12-30", tz = "UTC") %>% as.data.frame()
+
+"导入excel方式2：读取该excel的所有工作表"
+sheet_names <- names(wb2) #wb2 = "Downloads/举报异常资金12月1日-12月26日审批.xlsx")
+all_data <- NULL
+# 循环读取每个 sheet 的内容
+for (sheet_name in 1:length(sheet_names)) {
+  rawdata1 <- read.xlsx(wb2, sheet = sheet_name)  # 读取当前 sheet 的数据
+  colname <- rawdata1[1,]
+  rawdata1 <- rawdata1[-1,]
+  colnames(rawdata1) <- colname
+  rawdata1[,"发起时间"]<- as.POSIXct(rawdata1[,"发起时间"] %>% unlist() %>% as.numeric()*86400, origin = "1899-12-30", tz = "UTC") %>% as.data.frame()
+  data1 <- rawdata1[,c("申请编号","申请状态","发起时间","历史审批人","历史办理人","当前处理人","举报人/受害者的UID",
+                       "被举报账号/需处置账号的UID","举报类型","风控二审-实际处置的账号UID","风控二审-实际处置方式",
+                       "风控二审-追溯资金补充处置账户")]
+  all_data <- rbind(all_data,data1)
+  
+}
+
+"导入excel方式3：直接读取excel，可选择工作表"
+data <- read_excel("Downloads/客服风控资料同步当月每小时各兄弟工作量统计.xlsx", sheet = 2)
+
+"导入excel方式4：选择读取excel"
+# 选择文件并返回文件路径
+file_path <- file.choose()
+# 检查是否选择了文件
+if (!is.null(file_path)) {
+  # 打开文件
+  file <- file(file_path, "r")
+  # 读取文件内容
+  file_contents <- readLines(file)
+  # 输出文件内容
+  cat(file_contents, sep = "\n")
+  # 关闭文件
+  close(file)
+} else {
+  # 用户取消了文件选择
+  cat("未选择文件。\n")
+}
+library(readxl)
+data1 <- readxl::read_excel(file_path)
+
+##########################################   导出   ####################################################################################################
+"excel导出方式1：可以导出多个工作表"
+wb <- createWorkbook()
+addWorksheet(wb, "标签添加明细全资料")
+writeData(wb, "标签添加明细全资料", data_check_mingxi)
+addWorksheet(wb, "多个审批跟进的账号")
+writeData(wb, "多个审批跟进的账号", filtered_data) #subset2_2还是filtered_data?
+# 保存 Excel 文件
+date_today <- format(Sys.Date(),"%Y%m%d")
+name1 <- paste("标签添加明细统计比对",date_today,".xlsx")
+saveWorkbook(wb, name1, overwrite = TRUE)
+
+"excel导出方式2：简单导出excel"
+# 寫入excel
+file_path <- "D:\\Users\\marshaw.tan\\Downloads\\BTCC_剝頭皮.xlsx"
+#file_path <- setwd("C:\\Users\\user\\Downloads\\Telegram Desktopfilter_tradingcount_scalp.xlsx") #HOME
+write.xlsx(filter_tradingcount_scalp, file_path, digits = 2)
+
+
+
